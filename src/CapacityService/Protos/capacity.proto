@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+option csharp_namespace = "CapacityService.Grpc";
+
+package capacity;
+
+service Capacity {
+  rpc GetCourse         (GetCourseRequest)   returns (CourseReply);
+  rpc ListCourses       (ListCoursesRequest) returns (ListCoursesReply);
+  rpc CheckAvailability (CheckRequest)       returns (CheckReply);
+  rpc ReserveSeat       (SeatRequest)        returns (SeatReply);
+  rpc ReleaseSeat       (SeatRequest)        returns (SeatReply);
+}
+
+message GetCourseRequest   { int32 course_id = 1; }
+message ListCoursesRequest {}
+
+message CourseReply {
+  int32 id = 1;
+  string code = 2;
+  string name = 3;
+  int32 capacity = 4;
+  int32 registered = 5;
+  int32 remaining = 6;
+}
+
+message ListCoursesReply { repeated CourseReply courses = 1; }
+
+message CheckRequest { int32 course_id = 1; }
+message CheckReply {
+  bool available = 1;
+  int32 remaining = 2;
+}
+
+message SeatRequest { int32 course_id = 1; }
+message SeatReply {
+  bool success = 1;
+  string message = 2;
+  int32 remaining = 3;
+}
