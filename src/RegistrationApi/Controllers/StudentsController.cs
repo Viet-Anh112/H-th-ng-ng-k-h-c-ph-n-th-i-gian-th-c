@@ -19,6 +19,13 @@ public class StudentsController : ControllerBase
         _capacity = capacity;
     }
 
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<StudentDto>>> GetAll(CancellationToken ct)
+    {
+        var students = await _db.Students.AsNoTracking().OrderBy(s => s.Id).ToListAsync(ct);
+        return Ok(students.Select(StudentDto.From));
+    }
+
     [HttpGet("{studentId}/registrations")]
     public async Task<ActionResult<IEnumerable<RegistrationDto>>> GetRegistrations(
         string studentId, CancellationToken ct)

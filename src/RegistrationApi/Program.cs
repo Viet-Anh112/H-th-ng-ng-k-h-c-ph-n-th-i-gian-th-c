@@ -27,13 +27,14 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.MapControllers();
 

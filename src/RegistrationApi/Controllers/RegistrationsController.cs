@@ -46,6 +46,29 @@ public class RegistrationsController : ControllerBase
         }
     }
 
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<RegistrationDto>>> GetAll(CancellationToken ct)
+    {
+        var regs = await _db.Registrations.AsNoTracking().OrderByDescending(r => r.Id).ToListAsync(ct);
+        var courses = (await _capacity.ListCoursesAsync(new ListCoursesRequest(), cancellationToken: ct))
+            .Courses.ToDictionary(c => c.Id);
+        return Ok(regs.Select(r => RegistrationDto.From(r, courses.TryGetValue(r.CourseId, out var c) ? c : null)));
+    }
+
+    [HttpPost("reset-test-data")]
+    public async Task<IActionResult> ResetTestData(CancellationToken ct)
+    {
+        var activeRegs = await _db.Registrations.Where(r => r.Status == RegistrationStatus.Active).ToListAsync(ct);
+        foreach (var reg in activeRegs)
+        {
+            reg.Status = RegistrationStatus.Cancelled;
+            reg.CancelledAt = DateTime.UtcNow;
+            await _capacity.ReleaseSeatAsync(new SeatRequest { CourseId = reg.CourseId }, cancellationToken: ct);
+        }
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { message = "Đã dọn dẹp và reset toàn bộ dữ liệu kiểm thử về trạng thái ban đầu!" });
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<RegistrationDto>> GetById(int id, CancellationToken ct)
     {

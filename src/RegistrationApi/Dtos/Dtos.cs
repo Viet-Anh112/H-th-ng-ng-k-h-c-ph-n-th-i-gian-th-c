@@ -10,6 +10,11 @@ public record CourseDto(int Id, string Code, string Name, int Capacity, int Regi
         new(c.Id, c.Code, c.Name, c.Capacity, c.Registered, c.Remaining);
 }
 
+public record StudentDto(string Id, string FullName)
+{
+    public static StudentDto From(Student s) => new(s.Id, s.FullName);
+}
+
 public class CreateRegistrationRequest
 {
     [Required, StringLength(20)]
