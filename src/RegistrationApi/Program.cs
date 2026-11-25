@@ -3,6 +3,7 @@ using CapacityService.Grpc;
 using Microsoft.EntityFrameworkCore;
 using RegistrationApi;
 using RegistrationApi.Data;
+using RegistrationApi.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,8 @@ builder.Services.AddDbContext<RegistrationDbContext>(o =>
 
 builder.Services.AddGrpcClient<Capacity.CapacityClient>(o =>
     o.Address = new Uri(builder.Configuration["Services:CapacityGrpc"]!));
+
+builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GrpcExceptionHandler>();

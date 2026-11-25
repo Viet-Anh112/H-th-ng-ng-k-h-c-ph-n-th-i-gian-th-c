@@ -1,8 +1,10 @@
 using CapacityService.Grpc;
+using Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RegistrationApi.Data;
 using RegistrationApi.Dtos;
+using RegistrationApi.Messaging;
 
 namespace RegistrationApi.Controllers;
 
@@ -12,14 +14,36 @@ public class RegistrationsController : ControllerBase
 {
     private readonly RegistrationDbContext _db;
     private readonly Capacity.CapacityClient _capacity;
+    private readonly IEventPublisher _publisher;
     private readonly ILogger<RegistrationsController> _logger;
 
     public RegistrationsController(RegistrationDbContext db, Capacity.CapacityClient capacity,
-        ILogger<RegistrationsController> logger)
+        IEventPublisher publisher, ILogger<RegistrationsController> logger)
     {
         _db = db;
         _capacity = capacity;
+        _publisher = publisher;
         _logger = logger;
+    }
+
+    // Phát sự kiện, lỗi RabbitMQ không được làm hỏng yêu cầu của sinh viên
+    private void PublishSafe(string eventType, Registration reg, int remainingSeats)
+    {
+        try
+        {
+            _publisher.Publish(new RegistrationEvent(
+                EventId: Guid.NewGuid(),
+                EventType: eventType,
+                RegistrationId: reg.Id,
+                StudentId: reg.StudentId,
+                CourseId: reg.CourseId,
+                RemainingSeats: remainingSeats,
+                OccurredAt: DateTime.UtcNow));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Không phát được sự kiện {Type} cho đăng ký {Id}", eventType, reg.Id);
+        }
     }
 
     [HttpGet("{id:int}")]
@@ -77,7 +101,7 @@ public class RegistrationsController : ControllerBase
             return Conflict(new ProblemDetails { Title = "Sinh viên đã đăng ký lớp này", Status = 409 });
         }
 
-        // Bước 4 sẽ thêm: phát sự kiện RegistrationCreated lên RabbitMQ (dùng seat.Remaining)
+        PublishSafe("RegistrationCreated", reg, seat.Remaining);
 
         var dto = RegistrationDto.From(reg);
         return CreatedAtAction(nameof(GetById), new { id = reg.Id }, dto);
@@ -104,7 +128,7 @@ public class RegistrationsController : ControllerBase
             _logger.LogError("Hủy đăng ký {Id} nhưng không trả được chỗ cho lớp {CourseId}: {Msg}",
                 reg.Id, reg.CourseId, seat.Message);
 
-        // Bước 4 sẽ thêm: phát sự kiện RegistrationCancelled lên RabbitMQ (dùng seat.Remaining)
+        PublishSafe("RegistrationCancelled", reg, seat.Remaining);
 
         return Ok(RegistrationDto.From(reg));
     }
